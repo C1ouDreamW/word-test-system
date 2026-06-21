@@ -1,0 +1,8 @@
+### 文档 ###
+docs/
+
+### idea ###
+.idea/
+
+### Agent ###
+.claude/
