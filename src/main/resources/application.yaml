@@ -1,0 +1,47 @@
+spring:
+  profiles:
+    active: dev
+
+  application:
+    name: word-test-system
+
+  # ---------- 数据源（MySQL 8.0）----------
+  datasource:
+    url: jdbc:mysql://localhost:3306/word_test?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+    # HikariCP 连接池（spring-boot-starter-jdbc 默认提供）
+    hikari:
+      pool-name: WordTestHikariPool
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000       # 30s 拿不到连接就抛异常
+      idle-timeout: 600000            # 空闲连接 10min 回收
+      max-lifetime: 1800000           # 连接最长存活 30min
+      connection-test-query: SELECT 1
+
+  # ---------- JdbcTemplate ----------
+  jdbc:
+    template:
+      query-timeout: 15               # 单条 SQL 最长执行秒数
+      fetch-size: 100                 # 大查询时分批加载，避免 OOM
+
+  # ---------- Jackson（REST JSON 序列化）----------
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    serialization:
+      write-dates-as-timestamps: false  # 日期不写成时间戳
+
+# ---------- Web 服务 ----------
+server:
+  port: 8080                          # 若被占用改成 8081
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true                     # 强制请求/响应都用 UTF-8，防中文乱码
+
+
