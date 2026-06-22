@@ -1,13 +1,13 @@
 # 专业英语单词测试系统
 
 > **选题**：4．专业英语单词测试 ｜ **等级**：A ｜ **人数**：2  
-> **技术栈**：Spring Boot 2.7 + REST API + Bootstrap 5 + MySQL 8.0
+> **技术栈**：Spring Boot 3.5 + REST API + Bootstrap 5 + MySQL 8.0
 
 ---
 
 ## 一、项目简介
 
-面向「网络工程导论」课程的专业英语单词限时考试系统。支持管理员发布考试、学生在线答题（题目随机排序）、自动判卷、成绩统计，以及根据答题情况生成错词字符云。
+面向学生和教师端的专业英语单词限时考试系统。支持管理员发布考试、学生在线答题（题目随机排序）、自动判卷、成绩统计，以及根据答题情况生成错词字符云。
 
 ---
 
@@ -15,7 +15,7 @@
 
 ### 环境要求
 
-- JDK 8
+- JDK 17
 - Maven 3.6+
 - MySQL 8.0
 
@@ -26,7 +26,7 @@
 mysql -u root -p < sql/init.sql
 
 # 2. 修改数据库连接（如果密码不是 root）
-# 编辑 src/main/resources/application.properties → spring.datasource.password
+# 编辑 src/main/resources/application.yaml → spring.datasource.password
 
 # 3. 启动项目
 mvn spring-boot:run
