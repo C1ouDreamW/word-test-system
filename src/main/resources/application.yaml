@@ -1,6 +1,8 @@
 spring:
   application:
     name: word-test-system
+  profiles:
+    active: local
 
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/word_test?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true}

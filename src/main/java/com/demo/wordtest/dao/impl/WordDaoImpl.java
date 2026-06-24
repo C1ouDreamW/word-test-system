@@ -5,8 +5,12 @@ import com.demo.wordtest.entity.Word;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -60,7 +64,20 @@ public class WordDaoImpl implements WordDao {
     @Override
     public int insert(Word word) {
         String sql = "INSERT INTO words (english, chinese, category) VALUES (?, ?, ?)";
-        return jdbc.update(sql, word.getEnglish(), word.getChinese(), word.getCategory());
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        int rows = jdbc.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, word.getEnglish());
+            ps.setString(2, word.getChinese());
+            ps.setString(3, word.getCategory());
+            return ps;
+        }, keyHolder);
+        // 回填自增ID
+        Number generatedId = keyHolder.getKey();
+        if (generatedId != null) {
+            word.setId(generatedId.intValue());
+        }
+        return rows;
     }
 
     @Override

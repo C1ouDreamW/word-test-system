@@ -5,8 +5,12 @@ import com.demo.wordtest.entity.Exam;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.util.List;
 
 /**
@@ -41,11 +45,21 @@ public class ExamDaoImpl implements ExamDao {
     public int insert(Exam exam) {
         String sql = "INSERT INTO exams (title, start_time, end_time, question_count) "
                    + "VALUES (?, ?, ?, ?)";
-        return jdbc.update(sql,
-                exam.getTitle(),
-                exam.getStartTime(),
-                exam.getEndTime(),
-                exam.getQuestionCount());
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        int rows = jdbc.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, exam.getTitle());
+            ps.setObject(2, exam.getStartTime());
+            ps.setObject(3, exam.getEndTime());
+            ps.setInt(4, exam.getQuestionCount());
+            return ps;
+        }, keyHolder);
+        // 回填自增ID
+        Number generatedId = keyHolder.getKey();
+        if (generatedId != null) {
+            exam.setId(generatedId.intValue());
+        }
+        return rows;
     }
 
     @Override
