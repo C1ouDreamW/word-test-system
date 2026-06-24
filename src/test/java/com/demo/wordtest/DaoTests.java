@@ -190,7 +190,7 @@ class DaoTests {
         String uniqueTitle = "DAO测试考试_" + System.currentTimeMillis();
         Exam exam = new Exam(null, uniqueTitle,
                 LocalDateTime.of(2026, 6, 24, 9, 0),
-                LocalDateTime.of(2026, 6, 24, 11, 0), 10);
+                LocalDateTime.of(2026, 6, 24, 11, 0), 10, null);
         int rows = examDao.insert(exam);
         assertEquals(1, rows);
 
@@ -231,7 +231,7 @@ class DaoTests {
         // 先插入一个临时考试，避免 FK 冲突
         Exam tempExam = new Exam(null, "QuestionDao测试_" + System.currentTimeMillis(),
                 LocalDateTime.of(2026, 6, 24, 9, 0),
-                LocalDateTime.of(2026, 6, 24, 11, 0), 3);
+                LocalDateTime.of(2026, 6, 24, 11, 0), 3, null);
         examDao.insert(tempExam);
         Integer tempExamId = examDao.findAll().stream()
                 .filter(e -> e.getTitle().startsWith("QuestionDao测试_"))
