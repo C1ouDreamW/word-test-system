@@ -132,4 +132,19 @@ public class AnswerDaoImpl implements AnswerDao {
 
         return jdbc.queryForList(sql, examId);
     }
+
+    @Override
+    public List<Map<String, Object>> findAnswerDetailsByExamIdAndUserId(Integer examId, Integer userId) {
+        String sql = "SELECT q.id AS questionId, q.question_type AS questionType, " +
+                     "q.question_text AS questionText, q.correct_answer AS correctAnswer, " +
+                     "a.user_answer AS userAnswer, a.is_correct AS isCorrect, " +
+                     "w.english AS wordEnglish, w.chinese AS wordChinese " +
+                     "FROM questions q " +
+                     "LEFT JOIN answers a ON a.question_id = q.id AND a.user_id = q.user_id " +
+                     "JOIN words w ON w.id = q.word_id " +
+                     "WHERE q.exam_id = ? AND q.user_id = ? " +
+                     "ORDER BY q.sort_order";
+
+        return jdbc.queryForList(sql, examId, userId);
+    }
 }

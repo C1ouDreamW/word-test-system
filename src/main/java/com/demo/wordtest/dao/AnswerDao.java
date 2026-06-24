@@ -46,4 +46,11 @@ public interface AnswerDao {
      * 返回每行: {question_id, word_english, word_chinese, question_type, correct_rate}
      */
     List<Map<String, Object>> findQuestionCorrectRates(Integer examId);
+
+    /**
+     * 查询某学生在某次考试中的答题详情（含题目信息）
+     * 返回每行: {question_id, question_type, question_text, correct_answer,
+     *            user_answer, is_correct, word_english, word_chinese}
+     */
+    List<Map<String, Object>> findAnswerDetailsByExamIdAndUserId(Integer examId, Integer userId);
 }

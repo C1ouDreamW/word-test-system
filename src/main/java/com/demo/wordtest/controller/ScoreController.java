@@ -4,6 +4,7 @@ import com.demo.wordtest.common.ApiResult;
 import com.demo.wordtest.service.ScoreService;
 import com.demo.wordtest.vo.ScoreVO;
 import com.demo.wordtest.vo.StatsVO;
+import com.demo.wordtest.vo.SubmitResultVO;
 import com.demo.wordtest.vo.WordCloudItemVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -58,5 +59,20 @@ public class ScoreController {
     public ApiResult<?> getWordCloud(@RequestParam(required = false) Integer userId) {
         List<WordCloudItemVO> items = scoreService.getWordCloud(userId);
         return ApiResult.ok(items);
+    }
+
+    /**
+     * GET /api/exams/{examId}/answers?userId=1
+     * 查询某学生在某次考试中的答题详情（管理员成绩统计页查看学生答卷用）
+     */
+    @GetMapping("/exams/{examId}/answers")
+    public ApiResult<?> getStudentAnswers(@PathVariable Integer examId,
+                                           @RequestParam Integer userId) {
+        try {
+            SubmitResultVO detail = scoreService.getStudentExamDetail(examId, userId);
+            return ApiResult.ok(detail);
+        } catch (IllegalArgumentException e) {
+            return ApiResult.fail(e.getMessage());
+        }
     }
 }

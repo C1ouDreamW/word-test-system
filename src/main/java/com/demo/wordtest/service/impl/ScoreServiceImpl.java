@@ -4,9 +4,11 @@ import com.demo.wordtest.dao.AnswerDao;
 import com.demo.wordtest.dao.ExamDao;
 import com.demo.wordtest.entity.Exam;
 import com.demo.wordtest.service.ScoreService;
+import com.demo.wordtest.vo.AnswerDetailVO;
 import com.demo.wordtest.vo.QuestionStatVO;
 import com.demo.wordtest.vo.ScoreVO;
 import com.demo.wordtest.vo.StatsVO;
+import com.demo.wordtest.vo.SubmitResultVO;
 import com.demo.wordtest.vo.WordCloudItemVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -151,5 +153,51 @@ public class ScoreServiceImpl implements ScoreService {
         } else {
             return answerDao.findAllWrongWords();
         }
+    }
+
+    @Override
+    public SubmitResultVO getStudentExamDetail(Integer examId, Integer userId) {
+        // 1. 校验考试是否存在
+        Exam exam = examDao.findById(examId);
+        if (exam == null) {
+            throw new IllegalArgumentException("考试不存在");
+        }
+
+        // 2. 查询答题详情
+        List<Map<String, Object>> rows = answerDao.findAnswerDetailsByExamIdAndUserId(examId, userId);
+
+        int total = rows.size();
+        int correctCount = 0;
+        List<AnswerDetailVO> details = new ArrayList<>();
+
+        for (Map<String, Object> row : rows) {
+            Integer isCorrect = row.get("isCorrect") != null
+                    ? ((Number) row.get("isCorrect")).intValue() : 0;
+            if (isCorrect == 1) correctCount++;
+
+            AnswerDetailVO detail = new AnswerDetailVO();
+            detail.setQuestionId((Integer) row.get("questionId"));
+
+            // 根据题型决定展示什么内容作为 question 字段
+            String questionType = (String) row.get("questionType");
+            String wordEnglish = (String) row.get("wordEnglish");
+            String wordChinese = (String) row.get("wordChinese");
+
+            if ("CN_TO_EN".equals(questionType)) {
+                detail.setQuestion(wordChinese);
+            } else {
+                detail.setQuestion(wordEnglish);
+            }
+
+            detail.setYourAnswer((String) row.get("userAnswer"));
+            detail.setCorrectAnswer((String) row.get("correctAnswer"));
+            detail.setCorrect(isCorrect == 1);
+
+            details.add(detail);
+        }
+
+        int score = total > 0 ? (int) Math.round((double) correctCount / total * 100) : 0;
+
+        return new SubmitResultVO(score, total, correctCount, details);
     }
 }

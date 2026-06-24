@@ -253,7 +253,43 @@
 
 ---
 
-## 7. 字符云（学生 & 管理员）
+## 7. 答题详情（管理员）
+
+### GET `/api/exams/{examId}/answers?userId=1`
+
+查询某学生在某次考试中的完整答题详情，用于管理员在成绩统计页点击查看学生答卷。
+
+**响应：**
+```json
+{
+    "code": 200,
+    "data": {
+        "score": 85,
+        "total": 20,
+        "correctCount": 17,
+        "details": [
+            {
+                "questionId": 1,
+                "question": "router",
+                "yourAnswer": "路由器",
+                "correctAnswer": "路由器",
+                "correct": true
+            },
+            {
+                "questionId": 2,
+                "question": "bandwidth",
+                "yourAnswer": "延迟",
+                "correctAnswer": "带宽",
+                "correct": false
+            }
+        ]
+    }
+}
+```
+
+---
+
+## 8. 字符云（学生 & 管理员）
 
 ### GET `/api/wordcloud?userId=1`
 
@@ -291,6 +327,7 @@
 | DELETE | `/api/exams/{id}` | 删除考试 | 管理员 |
 | GET | `/api/exams/{examId}/paper` | 获取考卷 | 学生 |
 | POST | `/api/exams/{examId}/submit` | 提交答案 | 学生 |
+| GET | `/api/exams/{examId}/answers` | 查看学生答卷详情 | 管理员 |
 | GET | `/api/scores` | 查询成绩 | 学生/管理员 |
 | GET | `/api/stats/{examId}` | 考试统计 | 管理员 |
 | GET | `/api/wordcloud` | 字符云数据 | 学生/管理员 |
