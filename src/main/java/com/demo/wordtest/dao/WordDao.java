@@ -18,4 +18,10 @@ public interface WordDao {
 
     // 5. 删除单词
     int delete(Integer id);
+
+    // 6. 查询全部单词（供组卷时生成选择题干扰项）
+    List<Word> findAll();
+
+    // 7. 随机抽取 N 个单词（ORDER BY RAND()）
+    List<Word> findRandomWords(int count);
 }

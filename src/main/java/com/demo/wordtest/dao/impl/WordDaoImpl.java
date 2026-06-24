@@ -91,4 +91,16 @@ public class WordDaoImpl implements WordDao {
         String sql = "DELETE FROM words WHERE id = ?";
         return jdbc.update(sql, id);
     }
+
+    @Override
+    public List<Word> findAll() {
+        String sql = "SELECT id, english, chinese, category FROM words";
+        return jdbc.query(sql, new BeanPropertyRowMapper<>(Word.class));
+    }
+
+    @Override
+    public List<Word> findRandomWords(int count) {
+        String sql = "SELECT id, english, chinese, category FROM words ORDER BY RAND() LIMIT ?";
+        return jdbc.query(sql, new BeanPropertyRowMapper<>(Word.class), count);
+    }
 }
