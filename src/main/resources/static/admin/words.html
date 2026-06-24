@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>单词库管理 - 专业英语单词测试系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .sidebar { min-height: 100vh; background-color: #343a40; color: white; padding-top: 20px; }
+        .sidebar a { color: #adb5bd; text-decoration: none; padding: 10px 20px; display: block; }
+        .sidebar a:hover, .sidebar a.active { color: white; background-color: #495057; }
+        .main-content { padding: 30px; }
+        .table td, .table th { vertical-align: middle; }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-2 sidebar">
+            <h4 class="text-center mb-4">管理员后台</h4>
+            <a href="/admin/words.html" class="active">单词管理</a>
+            <a href="/admin/exams.html">考试管理</a>
+            <a href="/admin/stats.html">成绩统计</a>
+            <a href="/admin/wordcloud.html">字符云</a>
+            <hr class="text-secondary">
+            <a href="/login.html" class="text-danger" onclick="localStorage.removeItem('user')">退出登录</a>
+        </div>
+
+        <div class="col-md-10 main-content">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>单词库管理</h2>
+                <button class="btn btn-primary" onclick="showAddModal()">+ 新增单词</button>
+            </div>
+
+            <div class="card mb-4 border-0 shadow-sm">
+                <div class="card-body bg-light">
+                    <form id="searchForm" class="row g-3 align-items-center" onsubmit="event.preventDefault(); loadWords();">
+                        <div class="col-auto">
+                            <input type="text" class="form-control" id="searchKeyword" placeholder="搜索英文或中文...">
+                        </div>
+                        <div class="col-auto">
+                            <select class="form-select" id="searchCategory">
+                                <option value="">所有分类</option>
+                                <option value="网络基础">网络基础</option>
+                                <option value="网络安全">网络安全</option>
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-secondary">搜索</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>英文 (English)</th>
+                                <th>中文释义</th>
+                                <th>分类</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="wordTableBody">
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">正在加载数据...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="wordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">新增单词</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="wordForm">
+                    <input type="hidden" id="wordId">
+                    <div class="mb-3">
+                        <label class="form-label">英文单词</label>
+                        <input type="text" class="form-control" id="english" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">中文释义</label>
+                        <input type="text" class="form-control" id="chinese" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">分类</label>
+                        <select class="form-select" id="category">
+                            <option value="网络基础">网络基础</option>
+                            <option value="网络安全">网络安全</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveWord()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js"></script>
+
+<script>
+    let wordModal; // 用于存放弹窗实例
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user || user.role !== 'admin') {
+            alert('您没有权限或未登录！');
+            window.location.href = '/login.html';
+            return;
+        }
+        
+        // 初始化 Bootstrap 弹窗
+        wordModal = new bootstrap.Modal(document.getElementById('wordModal'));
+        loadWords();
+    });
+
+    function loadWords() {
+        const keyword = document.getElementById('searchKeyword').value;
+        const category = document.getElementById('searchCategory').value;
+        
+        let url = '/api/words?page=1&size=50'; // 为了方便查看，把size调大到50
+        if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+        if (category) url += `&category=${encodeURIComponent(category)}`;
+
+        API.get(url).then(data => {
+            const tbody = document.getElementById('wordTableBody');
+            tbody.innerHTML = ''; 
+
+            if (!data.list || data.list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">没有找到符合条件的单词</td></tr>`;
+                return;
+            }
+
+            data.list.forEach(word => {
+                const tr = document.createElement('tr');
+                // 这里加个转义，防止英文里的单引号破坏 JS 代码
+                const safeEn = word.english.replace(/'/g, "\\'");
+                const safeCn = word.chinese.replace(/'/g, "\\'");
+                
+                tr.innerHTML = `
+                    <td>${word.id}</td>
+                    <td class="fw-bold text-primary">${word.english}</td>
+                    <td>${word.chinese}</td>
+                    <td><span class="badge bg-secondary">${word.category || '未分类'}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary me-2" onclick="showEditModal(${word.id}, '${safeEn}', '${safeCn}', '${word.category}')">编辑</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteWord(${word.id})">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        });
+    }
+
+    // 唤起新增弹窗
+    function showAddModal() {
+        document.getElementById('modalTitle').innerText = '新增单词';
+        document.getElementById('wordForm').reset();
+        document.getElementById('wordId').value = '';
+        wordModal.show();
+    }
+
+    // 唤起编辑弹窗并回显数据
+    function showEditModal(id, en, cn, cat) {
+        document.getElementById('modalTitle').innerText = '编辑单词';
+        document.getElementById('wordId').value = id;
+        document.getElementById('english').value = en;
+        document.getElementById('chinese').value = cn;
+        document.getElementById('category').value = cat || '网络基础';
+        wordModal.show();
+    }
+
+    // 执行保存 (根据有没有 ID 决定是发 POST 还是 PUT)
+    function saveWord() {
+        const id = document.getElementById('wordId').value;
+        const wordData = {
+            english: document.getElementById('english').value,
+            chinese: document.getElementById('chinese').value,
+            category: document.getElementById('category').value
+        };
+
+        if (id) {
+            API.put(`/api/words/${id}`, wordData).then(() => {
+                wordModal.hide();
+                loadWords(); // 保存成功后重新刷新表格
+            });
+        } else {
+            API.post('/api/words', wordData).then(() => {
+                wordModal.hide();
+                loadWords();
+            });
+        }
+    }
+
+    // 执行删除
+    function deleteWord(id) {
+        if (confirm('确定要永久删除这个单词吗？')) {
+            API.delete(`/api/words/${id}`).then(() => {
+                loadWords(); // 删除成功后刷新表格
+            });
+        }
+    }
+</script>
+
+</body>
+</html>
