@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成绩统计 - 专业英语单词测试系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .sidebar { min-height: 100vh; background-color: #343a40; color: white; padding-top: 20px; }
+        .sidebar a { color: #adb5bd; text-decoration: none; padding: 10px 20px; display: block; }
+        .sidebar a:hover, .sidebar a.active { color: white; background-color: #495057; }
+        .main-content { padding: 30px; }
+        /* 给统计卡片加点生动的悬浮效果 */
+        .stat-card { transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-5px); }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-2 sidebar">
+            <h4 class="text-center mb-4">管理员后台</h4>
+            <a href="/admin/words.html">单词管理</a>
+            <a href="/admin/exams.html">考试管理</a>
+            <a href="/admin/stats.html" class="active">成绩统计</a>
+            <a href="/admin/wordcloud.html">字符云</a>
+            <hr class="text-secondary">
+            <a href="/login.html" class="text-danger" onclick="localStorage.removeItem('user')">退出登录</a>
+        </div>
+
+        <div class="col-md-10 main-content">
+            <h2 class="mb-4">数据统计大屏</h2>
+
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card stat-card border-0 shadow-sm bg-primary text-white">
+                        <div class="card-body">
+                            <h5 class="card-title">已发布考试总数</h5>
+                            <h2 class="display-5 fw-bold" id="totalExams">-</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card stat-card border-0 shadow-sm bg-success text-white">
+                        <div class="card-body">
+                            <h5 class="card-title">累计答题人次</h5>
+                            <h2 class="display-5 fw-bold" id="totalRecords">-</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card stat-card border-0 shadow-sm bg-warning text-dark">
+                        <div class="card-body">
+                            <h5 class="card-title">全站平均分</h5>
+                            <h2 class="display-5 fw-bold" id="averageScore">- 分</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">最近答题记录</h5>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadStats()">↻ 刷新数据</button>
+                </div>
+                <div class="card-body">
+                    <table class="table table-hover text-center align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>记录ID</th>
+                                <th>学生账号</th>
+                                <th>所属考试</th>
+                                <th>答题得分</th>
+                                <th>交卷时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="statsTableBody">
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">正在加载统计数据...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 经典防偷窥校验
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user || user.role !== 'admin') {
+            alert('您没有权限或未登录！');
+            window.location.href = '/login.html';
+            return;
+        }
+        
+        // 页面加载完立刻请求数据
+        loadStats();
+    });
+
+    function loadStats() {
+        // 这里假设你组长写的统计接口是 /api/stats (如果后面发现接口地址不一样，我们改这里就行)
+        API.get('/api/stats').then(data => {
+            // 渲染顶部卡片数据
+            document.getElementById('totalExams').innerText = data.totalExams || 0;
+            document.getElementById('totalRecords').innerText = data.totalRecords || 0;
+            document.getElementById('averageScore').innerText = data.averageScore || 0;
+
+            // 渲染下方表格
+            const tbody = document.getElementById('statsTableBody');
+            tbody.innerHTML = ''; 
+
+            if (!data.records || data.records.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">暂无学生答题记录</td></tr>`;
+                return;
+            }
+
+            data.records.forEach(record => {
+                // 给不及格的分数标个红
+                const scoreColor = record.score < 60 ? 'text-danger fw-bold' : 'text-success fw-bold';
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${record.id}</td>
+                    <td>${record.username}</td>
+                    <td>${record.examTitle}</td>
+                    <td class="${scoreColor}">${record.score} 分</td>
+                    <td>${record.submitTime}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }).catch(err => {
+            // 如果组长还没完全写好这个接口，我们就给个友好的兜底提示
+            document.getElementById('statsTableBody').innerHTML = `
+                <tr><td colspan="5" class="text-center text-warning">后端统计接口暂未联通或报错，待组长确认 API 后恢复。</td></tr>
+            `;
+            document.getElementById('totalExams').innerText = '0';
+            document.getElementById('totalRecords').innerText = '0';
+            document.getElementById('averageScore').innerText = '0';
+        });
+    }
+</script>
+
+</body>
+</html>
