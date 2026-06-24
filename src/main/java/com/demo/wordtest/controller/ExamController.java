@@ -4,6 +4,8 @@ import com.demo.wordtest.common.ApiResult;
 import com.demo.wordtest.entity.Exam;
 import com.demo.wordtest.service.ExamService;
 import com.demo.wordtest.vo.PaperVO;
+import com.demo.wordtest.vo.SubmitRequest;
+import com.demo.wordtest.vo.SubmitResultVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -72,6 +74,21 @@ public class ExamController {
         } catch (IllegalArgumentException e) {
             return ApiResult.fail(e.getMessage());
         } catch (IllegalStateException e) {
+            return ApiResult.fail(e.getMessage());
+        }
+    }
+
+    /**
+     * POST /api/exams/{examId}/submit
+     * 提交答案并自动判卷
+     */
+    @PostMapping("/{examId}/submit")
+    public ApiResult<?> submit(@PathVariable Integer examId,
+                               @RequestBody SubmitRequest request) {
+        try {
+            SubmitResultVO result = examService.submitAnswer(examId, request);
+            return ApiResult.ok(result);
+        } catch (IllegalArgumentException e) {
             return ApiResult.fail(e.getMessage());
         }
     }

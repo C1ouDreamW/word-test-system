@@ -1,14 +1,19 @@
 package com.demo.wordtest.service.impl;
 
+import com.demo.wordtest.dao.AnswerDao;
 import com.demo.wordtest.dao.ExamDao;
 import com.demo.wordtest.dao.QuestionDao;
 import com.demo.wordtest.dao.WordDao;
+import com.demo.wordtest.entity.Answer;
 import com.demo.wordtest.entity.Exam;
 import com.demo.wordtest.entity.Question;
 import com.demo.wordtest.entity.Word;
 import com.demo.wordtest.service.ExamService;
+import com.demo.wordtest.vo.AnswerDetailVO;
 import com.demo.wordtest.vo.PaperVO;
 import com.demo.wordtest.vo.QuestionVO;
+import com.demo.wordtest.vo.SubmitRequest;
+import com.demo.wordtest.vo.SubmitResultVO;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,6 +26,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
 
@@ -35,6 +41,9 @@ public class ExamServiceImpl implements ExamService {
 
     @Autowired
     private WordDao wordDao;
+
+    @Autowired
+    private AnswerDao answerDao;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -223,6 +232,134 @@ public class ExamServiceImpl implements ExamService {
                 .collect(Collectors.toList());
 
         return new PaperVO(exam.getId(), exam.getTitle(), remainingSeconds, questionVOs);
+    }
+
+    // ==================== 判卷 ====================
+
+    @Override
+    @Transactional
+    public SubmitResultVO submitAnswer(Integer examId, SubmitRequest request) {
+        Integer userId = request.getUserId();
+        List<SubmitRequest.AnswerItem> submittedAnswers = request.getAnswers();
+
+        if (userId == null) {
+            throw new IllegalArgumentException("用户ID不能为空");
+        }
+        if (submittedAnswers == null || submittedAnswers.isEmpty()) {
+            throw new IllegalArgumentException("答案列表不能为空");
+        }
+
+        // 1. 查出该用户该考试的考卷题目
+        List<Question> questions = questionDao.findByExamIdAndUserId(examId, userId);
+        if (questions.isEmpty()) {
+            throw new IllegalArgumentException("该用户尚未生成考卷，请先获取考卷");
+        }
+
+        // 2. 检查是否已提交过（防重复提交）
+        List<Integer> questionIds = submittedAnswers.stream()
+                .map(SubmitRequest.AnswerItem::getQuestionId)
+                .collect(Collectors.toList());
+        List<com.demo.wordtest.entity.Answer> existingAnswers =
+                answerDao.findByQuestionIdsAndUserId(questionIds, userId);
+        if (!existingAnswers.isEmpty()) {
+            throw new IllegalArgumentException("您已提交过该考卷，请勿重复提交");
+        }
+
+        // 3. 批量查词（供 detail 中展示单词用）
+        List<Integer> wordIds = questions.stream()
+                .map(Question::getWordId)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Integer, Word> wordMap = wordDao.findByIds(wordIds).stream()
+                .collect(Collectors.toMap(Word::getId, w -> w));
+
+        // 4. 构建 questionId → Question 的快速查找表
+        Map<Integer, Question> questionMap = questions.stream()
+                .collect(Collectors.toMap(Question::getId, q -> q));
+
+        // 5. 逐题判分
+        List<Answer> answerRecords = new ArrayList<>();
+        List<AnswerDetailVO> details = new ArrayList<>();
+        int correctCount = 0;
+
+        for (SubmitRequest.AnswerItem item : submittedAnswers) {
+            Question q = questionMap.get(item.getQuestionId());
+            if (q == null) {
+                continue; // 忽略无效的 questionId
+            }
+
+            boolean correct = judgeCorrect(q, item.getAnswer());
+            if (correct) {
+                correctCount++;
+            }
+
+            // 构建答案记录
+            Answer record = new Answer();
+            record.setQuestionId(item.getQuestionId());
+            record.setUserId(userId);
+            record.setUserAnswer(item.getAnswer());
+            record.setIsCorrect(correct ? 1 : 0);
+            answerRecords.add(record);
+
+            // 构建判卷详情
+            Word word = wordMap.get(q.getWordId());
+            String questionWord = getQuestionWord(q, word);
+
+            AnswerDetailVO detail = new AnswerDetailVO();
+            detail.setQuestionId(item.getQuestionId());
+            detail.setQuestion(questionWord);
+            detail.setYourAnswer(item.getAnswer());
+            detail.setCorrectAnswer(q.getCorrectAnswer());
+            detail.setCorrect(correct);
+            details.add(detail);
+        }
+
+        // 6. 批量写入 answers 表
+        answerDao.insertBatch(answerRecords);
+
+        // 7. 计算总分（百分制，四舍五入）
+        int total = questions.size();
+        int score = total > 0 ? (int) Math.round((double) correctCount / total * 100) : 0;
+
+        return new SubmitResultVO(score, total, correctCount, details);
+    }
+
+    /**
+     * 判题：填空忽略大小写和首尾空格，选择直接字符串匹配
+     */
+    private boolean judgeCorrect(Question q, String userAnswer) {
+        if (userAnswer == null) {
+            return false;
+        }
+
+        String trimmed = userAnswer.trim();
+        String expected = q.getCorrectAnswer().trim();
+
+        if ("CHOICE".equals(q.getQuestionType())) {
+            // 选择题：严格匹配
+            return trimmed.equals(expected);
+        } else {
+            // 填空题（EN_TO_CN / CN_TO_EN）：忽略大小写
+            return trimmed.equalsIgnoreCase(expected);
+        }
+    }
+
+    /**
+     * 根据题型返回被考查的单词文本（用于 detail.question 字段）
+     */
+    private String getQuestionWord(Question q, Word word) {
+        if (word == null) {
+            return "";
+        }
+        switch (q.getQuestionType()) {
+            case "EN_TO_CN":
+            case "CHOICE":
+                return word.getEnglish();
+            case "CN_TO_EN":
+                return word.getChinese();
+            default:
+                return word.getEnglish();
+        }
     }
 
     /**

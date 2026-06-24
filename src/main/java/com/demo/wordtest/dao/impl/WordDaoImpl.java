@@ -13,6 +13,7 @@ import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.StringJoiner;
 
 @Repository
 public class WordDaoImpl implements WordDao {
@@ -122,5 +123,20 @@ public class WordDaoImpl implements WordDao {
         } else {
             return findRandomWords(count);
         }
+    }
+
+    @Override
+    public List<Word> findByIds(List<Integer> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        StringJoiner placeholders = new StringJoiner(", ");
+        for (int i = 0; i < ids.size(); i++) {
+            placeholders.add("?");
+        }
+
+        String sql = "SELECT id, english, chinese, category FROM words WHERE id IN (" + placeholders + ")";
+        return jdbc.query(sql, ids.toArray(), new BeanPropertyRowMapper<>(Word.class));
     }
 }

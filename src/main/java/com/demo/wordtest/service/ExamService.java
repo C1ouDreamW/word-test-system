@@ -2,6 +2,8 @@ package com.demo.wordtest.service;
 
 import com.demo.wordtest.entity.Exam;
 import com.demo.wordtest.vo.PaperVO;
+import com.demo.wordtest.vo.SubmitRequest;
+import com.demo.wordtest.vo.SubmitResultVO;
 
 import java.util.List;
 
@@ -30,4 +32,10 @@ public interface ExamService {
      * 若该用户已生成过考卷则直接返回，否则随机抽题 + 打乱 + 分配题型后持久化
      */
     PaperVO getPaper(Integer examId, Integer userId);
+
+    /**
+     * 提交答案并自动判卷
+     * 逐题比对答案、写入 answers 表、计算总分并返回详情
+     */
+    SubmitResultVO submitAnswer(Integer examId, SubmitRequest request);
 }

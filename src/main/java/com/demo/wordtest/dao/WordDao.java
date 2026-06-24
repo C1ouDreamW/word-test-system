@@ -30,4 +30,7 @@ public interface WordDao {
 
     // 7b. 按分类随机抽取 N 个单词
     List<Word> findRandomWords(int count, String category);
+
+    // 8. 根据 ID 列表批量查询单词（判卷时关联用）
+    List<Word> findByIds(List<Integer> ids);
 }
