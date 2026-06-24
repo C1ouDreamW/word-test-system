@@ -45,7 +45,8 @@ CREATE TABLE exams (
     title VARCHAR(200) NOT NULL COMMENT '考试名称',
     start_time DATETIME NOT NULL COMMENT '开始时间',
     end_time DATETIME NOT NULL COMMENT '结束时间',
-    question_count INT NOT NULL COMMENT '题目数量'
+    question_count INT NOT NULL COMMENT '题目数量',
+    category VARCHAR(100) COMMENT '限定分类，为空则不限制'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='考试表';
 
 -- =============================================
