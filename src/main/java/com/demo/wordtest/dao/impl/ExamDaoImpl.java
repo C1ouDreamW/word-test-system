@@ -26,14 +26,14 @@ public class ExamDaoImpl implements ExamDao {
     @Override
     public List<Exam> findAll() {
         String sql = "SELECT id, title, start_time AS startTime, end_time AS endTime, "
-                   + "question_count AS questionCount FROM exams ORDER BY id DESC";
+                   + "question_count AS questionCount, category FROM exams ORDER BY id DESC";
         return jdbc.query(sql, new BeanPropertyRowMapper<>(Exam.class));
     }
 
     @Override
     public Exam findById(Integer id) {
         String sql = "SELECT id, title, start_time AS startTime, end_time AS endTime, "
-                   + "question_count AS questionCount FROM exams WHERE id = ?";
+                   + "question_count AS questionCount, category FROM exams WHERE id = ?";
         try {
             return jdbc.queryForObject(sql, new BeanPropertyRowMapper<>(Exam.class), id);
         } catch (Exception e) {
@@ -43,8 +43,8 @@ public class ExamDaoImpl implements ExamDao {
 
     @Override
     public int insert(Exam exam) {
-        String sql = "INSERT INTO exams (title, start_time, end_time, question_count) "
-                   + "VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO exams (title, start_time, end_time, question_count, category) "
+                   + "VALUES (?, ?, ?, ?, ?)";
         KeyHolder keyHolder = new GeneratedKeyHolder();
         int rows = jdbc.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
@@ -52,6 +52,7 @@ public class ExamDaoImpl implements ExamDao {
             ps.setObject(2, exam.getStartTime());
             ps.setObject(3, exam.getEndTime());
             ps.setInt(4, exam.getQuestionCount());
+            ps.setString(5, exam.getCategory());
             return ps;
         }, keyHolder);
         // 回填自增ID

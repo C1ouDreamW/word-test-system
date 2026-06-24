@@ -20,4 +20,5 @@ public class Exam {
     private LocalDateTime startTime; // 开始时间
     private LocalDateTime endTime;   // 结束时间
     private Integer questionCount;   // 题目数量
+    private String category;         // 限定分类，为空则不限制
 }

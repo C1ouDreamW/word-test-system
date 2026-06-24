@@ -82,17 +82,21 @@ public class ExamServiceImpl implements ExamService {
             return buildPaperVO(exam, existingQuestions);
         }
 
-        // 3. 随机抽取 N 个单词
-        List<Word> words = wordDao.findRandomWords(exam.getQuestionCount());
+        // 3. 随机抽取 N 个单词（若考试指定了分类则限定分类）
+        List<Word> words = wordDao.findRandomWords(exam.getQuestionCount(), exam.getCategory());
         if (words.size() < exam.getQuestionCount()) {
+            String category = exam.getCategory();
+            if (category != null && !category.trim().isEmpty()) {
+                throw new IllegalStateException("分类「" + category + "」下单词不足" + exam.getQuestionCount() + "个，无法生成考卷");
+            }
             throw new IllegalStateException("单词库数量不足，无法生成考卷");
         }
 
         // 4. 随机打乱顺序
         Collections.shuffle(words, random);
 
-        // 5. 预加载全部单词（供 CHOICE 题型生成干扰项）
-        List<Word> allWords = wordDao.findAll();
+        // 5. 预加载单词（供 CHOICE 题型生成干扰项，若考试指定了分类则限定分类）
+        List<Word> allWords = wordDao.findAll(exam.getCategory());
 
         // 6. 逐题生成
         List<Question> questions = new ArrayList<>();

@@ -103,4 +103,24 @@ public class WordDaoImpl implements WordDao {
         String sql = "SELECT id, english, chinese, category FROM words ORDER BY RAND() LIMIT ?";
         return jdbc.query(sql, new BeanPropertyRowMapper<>(Word.class), count);
     }
+
+    @Override
+    public List<Word> findAll(String category) {
+        if (category != null && !category.trim().isEmpty()) {
+            String sql = "SELECT id, english, chinese, category FROM words WHERE category = ?";
+            return jdbc.query(sql, new BeanPropertyRowMapper<>(Word.class), category);
+        } else {
+            return findAll();
+        }
+    }
+
+    @Override
+    public List<Word> findRandomWords(int count, String category) {
+        if (category != null && !category.trim().isEmpty()) {
+            String sql = "SELECT id, english, chinese, category FROM words WHERE category = ? ORDER BY RAND() LIMIT ?";
+            return jdbc.query(sql, new BeanPropertyRowMapper<>(Word.class), category, count);
+        } else {
+            return findRandomWords(count);
+        }
+    }
 }
