@@ -5,10 +5,15 @@ import com.demo.wordtest.entity.Word;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.StringJoiner;
 
 @Repository
 public class WordDaoImpl implements WordDao {
@@ -60,7 +65,20 @@ public class WordDaoImpl implements WordDao {
     @Override
     public int insert(Word word) {
         String sql = "INSERT INTO words (english, chinese, category) VALUES (?, ?, ?)";
-        return jdbc.update(sql, word.getEnglish(), word.getChinese(), word.getCategory());
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        int rows = jdbc.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, word.getEnglish());
+            ps.setString(2, word.getChinese());
+            ps.setString(3, word.getCategory());
+            return ps;
+        }, keyHolder);
+        // 回填自增ID
+        Number generatedId = keyHolder.getKey();
+        if (generatedId != null) {
+            word.setId(generatedId.intValue());
+        }
+        return rows;
     }
 
     @Override
@@ -73,5 +91,52 @@ public class WordDaoImpl implements WordDao {
     public int delete(Integer id) {
         String sql = "DELETE FROM words WHERE id = ?";
         return jdbc.update(sql, id);
+    }
+
+    @Override
+    public List<Word> findAll() {
+        String sql = "SELECT id, english, chinese, category FROM words";
+        return jdbc.query(sql, new BeanPropertyRowMapper<>(Word.class));
+    }
+
+    @Override
+    public List<Word> findRandomWords(int count) {
+        String sql = "SELECT id, english, chinese, category FROM words ORDER BY RAND() LIMIT ?";
+        return jdbc.query(sql, new BeanPropertyRowMapper<>(Word.class), count);
+    }
+
+    @Override
+    public List<Word> findAll(String category) {
+        if (category != null && !category.trim().isEmpty()) {
+            String sql = "SELECT id, english, chinese, category FROM words WHERE category = ?";
+            return jdbc.query(sql, new BeanPropertyRowMapper<>(Word.class), category);
+        } else {
+            return findAll();
+        }
+    }
+
+    @Override
+    public List<Word> findRandomWords(int count, String category) {
+        if (category != null && !category.trim().isEmpty()) {
+            String sql = "SELECT id, english, chinese, category FROM words WHERE category = ? ORDER BY RAND() LIMIT ?";
+            return jdbc.query(sql, new BeanPropertyRowMapper<>(Word.class), category, count);
+        } else {
+            return findRandomWords(count);
+        }
+    }
+
+    @Override
+    public List<Word> findByIds(List<Integer> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        StringJoiner placeholders = new StringJoiner(", ");
+        for (int i = 0; i < ids.size(); i++) {
+            placeholders.add("?");
+        }
+
+        String sql = "SELECT id, english, chinese, category FROM words WHERE id IN (" + placeholders + ")";
+        return jdbc.query(sql, ids.toArray(), new BeanPropertyRowMapper<>(Word.class));
     }
 }

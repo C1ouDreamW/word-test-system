@@ -56,4 +56,16 @@ public class QuestionDaoImpl implements QuestionDao {
         String sql = "DELETE FROM questions WHERE exam_id = ?";
         return jdbc.update(sql, examId);
     }
+
+    @Override
+    public List<Question> findByExamId(Integer examId) {
+        String sql = "SELECT q.id, q.exam_id AS examId, q.user_id AS userId, q.word_id AS wordId, "
+                   + "q.question_type AS questionType, q.question_text AS questionText, "
+                   + "q.correct_answer AS correctAnswer, q.options, q.sort_order AS sortOrder "
+                   + "FROM questions q "
+                   + "WHERE q.exam_id = ? AND q.user_id = ("
+                   + "  SELECT MIN(user_id) FROM questions WHERE exam_id = ?"
+                   + ") ORDER BY q.sort_order";
+        return jdbc.query(sql, new BeanPropertyRowMapper<>(Question.class), examId, examId);
+    }
 }
