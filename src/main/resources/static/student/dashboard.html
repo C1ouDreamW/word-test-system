@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生考试大厅 - 专业英语单词测试系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f6f9; }
+        .navbar { box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .exam-card { transition: transform 0.2s, box-shadow 0.2s; border: none; border-radius: 12px; }
+        .exam-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.08); }
+        .section-title { position: relative; padding-left: 15px; margin-bottom: 25px; font-weight: bold; }
+        .section-title::before { content: ''; position: absolute; left: 0; top: 10%; height: 80%; width: 5px; background-color: #0d6efd; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="#">🎓 专业英语单词测试系统</a>
+        <div class="d-flex align-items-center text-white">
+            <span class="me-3" id="welcomeMsg">欢迎，加载中...</span>
+            <button class="btn btn-sm btn-light text-primary fw-bold" onclick="logout()">退出登录</button>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <h4 class="section-title">待参加的考试</h4>
+    <div class="row mb-5" id="examListContainer">
+        <div class="col-12 text-center text-muted py-4">正在加载考试列表...</div>
+    </div>
+
+    <h4 class="section-title">我的历史成绩</h4>
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-5">
+        <div class="card-body p-0">
+            <table class="table table-hover text-center align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="py-3">考试名称</th>
+                        <th class="py-3">交卷时间</th>
+                        <th class="py-3">答题得分</th>
+                        <th class="py-3">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="scoreHistoryBody">
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-4">正在加载历史成绩...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+    let currentUser = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // 权限校验：必须是 student 才能进
+        const userStr = localStorage.getItem('user');
+        if (!userStr) {
+            alert('请先登录！');
+            window.location.href = '/login.html';
+            return;
+        }
+        
+        currentUser = JSON.parse(userStr);
+        if (currentUser.role !== 'student') {
+            alert('当前页面仅限学生访问！');
+            window.location.href = '/login.html';
+            return;
+        }
+
+        // 显示欢迎语
+        document.getElementById('welcomeMsg').innerText = `欢迎，${currentUser.username}`;
+
+        // 并发请求：加载考试列表 + 加载历史成绩
+        loadAvailableExams();
+        loadHistoryScores();
+    });
+
+    // 加载待考列表
+    function loadAvailableExams() {
+        API.get('/api/exams').then(exams => {
+            const container = document.getElementById('examListContainer');
+            container.innerHTML = '';
+
+            if (!exams || exams.length === 0) {
+                container.innerHTML = `<div class="col-12 text-center text-muted py-4">🎉 当前没有需要参加的考试，去放松一下吧！</div>`;
+                return;
+            }
+
+            exams.forEach(exam => {
+                // 判断考试状态来决定按钮颜色和文案
+                let btnHtml = '';
+                if (exam.status === '已结束') {
+                    btnHtml = `<button class="btn btn-secondary w-100" disabled>考试已结束</button>`;
+                } else if (exam.status === '未开始') {
+                    btnHtml = `<button class="btn btn-outline-secondary w-100" disabled>尚未开始</button>`;
+                } else {
+                    // 进行中：跳转到组长负责的 exam.html 答题页，并带上 examId
+                    btnHtml = `<a href="/student/exam.html?examId=${exam.id}" class="btn btn-primary w-100 fw-bold">进入考场</a>`;
+                }
+
+                const html = `
+                    <div class="col-md-4 mb-4">
+                        <div class="card exam-card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title text-primary fw-bold mb-3">${exam.title}</h5>
+                                <p class="card-text text-muted small mb-1">
+                                    ⏱ 开始：${exam.startTime || '暂无'}
+                                </p>
+                                <p class="card-text text-muted small mb-3">
+                                    🏁 结束：${exam.endTime || '暂无'}
+                                </p>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="badge bg-info text-dark">共 ${exam.questionCount} 题</span>
+                                    <span class="badge ${exam.status === '进行中' ? 'bg-success' : 'bg-secondary'}">${exam.status || '未知'}</span>
+                                </div>
+                                ${btnHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', html);
+            });
+        }).catch(err => {
+            document.getElementById('examListContainer').innerHTML = `<div class="col-12 text-center text-danger py-4">加载考试列表失败</div>`;
+        });
+    }
+
+    // 加载该学生的历史成绩
+    function loadHistoryScores() {
+        // 调用组长写的 GET /api/scores?userId=xxx 接口
+        API.get(`/api/scores?userId=${currentUser.id}`).then(records => {
+            const tbody = document.getElementById('scoreHistoryBody');
+            tbody.innerHTML = '';
+
+            if (!records || records.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">暂无考试记录</td></tr>`;
+                return;
+            }
+
+            records.forEach(record => {
+                const scoreColor = record.score < 60 ? 'text-danger fw-bold' : 'text-success fw-bold';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="fw-bold">${record.examTitle || '-'}</td>
+                    <td class="text-muted">${record.submitTime || '-'}</td>
+                    <td class="${scoreColor} fs-5">${record.score} 分</td>
+                    <td>
+                        <a href="/student/result.html?examId=${record.examId}" class="btn btn-sm btn-outline-primary">查看错题详情</a>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }).catch(err => {
+            document.getElementById('scoreHistoryBody').innerHTML = `<tr><td colspan="4" class="text-center text-danger py-4">成绩加载失败</td></tr>`;
+        });
+    }
+
+    function logout() {
+        localStorage.removeItem('user');
+        window.location.href = '/login.html';
+    }
+</script>
+
+</body>
+</html>
