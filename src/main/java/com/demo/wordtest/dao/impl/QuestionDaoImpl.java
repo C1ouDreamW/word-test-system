@@ -2,7 +2,6 @@ package com.demo.wordtest.dao.impl;
 
 import com.demo.wordtest.dao.QuestionDao;
 import com.demo.wordtest.entity.Question;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -17,8 +16,11 @@ import java.util.List;
 @Repository
 public class QuestionDaoImpl implements QuestionDao {
 
-    @Autowired
-    private JdbcTemplate jdbc;
+    private final JdbcTemplate jdbc;
+
+    public QuestionDaoImpl(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
 
     @Override
     public List<Question> findByExamIdAndUserId(Integer examId, Integer userId) {

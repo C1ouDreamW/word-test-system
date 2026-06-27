@@ -2,7 +2,6 @@ package com.demo.wordtest.dao.impl;
 
 import com.demo.wordtest.dao.ExamDao;
 import com.demo.wordtest.entity.Exam;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -20,8 +19,11 @@ import java.util.List;
 @Repository
 public class ExamDaoImpl implements ExamDao {
 
-    @Autowired
-    private JdbcTemplate jdbc;
+    private final JdbcTemplate jdbc;
+
+    public ExamDaoImpl(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
 
     @Override
     public List<Exam> findAll() {

@@ -17,7 +17,6 @@ import com.demo.wordtest.vo.SubmitResultVO;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,23 +32,21 @@ import java.util.stream.Collectors;
 @Service
 public class ExamServiceImpl implements ExamService {
 
-    @Autowired
-    private ExamDao examDao;
-
-    @Autowired
-    private QuestionDao questionDao;
-
-    @Autowired
-    private WordDao wordDao;
-
-    @Autowired
-    private AnswerDao answerDao;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
+    private final ExamDao examDao;
+    private final QuestionDao questionDao;
+    private final WordDao wordDao;
+    private final AnswerDao answerDao;
+    private final ObjectMapper objectMapper;
     private static final String[] QUESTION_TYPES = {"EN_TO_CN", "CN_TO_EN", "CHOICE"};
     private final Random random = new Random();
+
+    public ExamServiceImpl(ExamDao examDao, QuestionDao questionDao, WordDao wordDao, AnswerDao answerDao, ObjectMapper objectMapper) {
+        this.examDao = examDao;
+        this.questionDao = questionDao;
+        this.wordDao = wordDao;
+        this.answerDao = answerDao;
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public List<Exam> getExamList() {
@@ -175,7 +172,7 @@ public class ExamServiceImpl implements ExamService {
         Collections.shuffle(otherChinese, random);
         List<String> distractors = otherChinese.stream()
                 .limit(3)
-                .collect(Collectors.toList());
+                .toList();
 
         // 合并正确选项 + 干扰项，再次打乱
         List<String> options = new ArrayList<>();
@@ -205,7 +202,7 @@ public class ExamServiceImpl implements ExamService {
             return null;
         }
         try {
-            return objectMapper.readValue(json, new TypeReference<List<String>>() {});
+            return objectMapper.readValue(json, new TypeReference<>() {});
         } catch (JsonProcessingException e) {
             throw new RuntimeException("选项反序列化失败", e);
         }
@@ -351,14 +348,10 @@ public class ExamServiceImpl implements ExamService {
         if (word == null) {
             return "";
         }
-        switch (q.getQuestionType()) {
-            case "EN_TO_CN":
-            case "CHOICE":
-                return word.getEnglish();
-            case "CN_TO_EN":
-                return word.getChinese();
-            default:
-                return word.getEnglish();
+        if ("CN_TO_EN".equals(q.getQuestionType())){
+            return word.getChinese();
+        }else{
+            return word.getEnglish();
         }
     }
 

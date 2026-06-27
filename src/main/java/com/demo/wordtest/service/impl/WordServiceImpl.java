@@ -3,7 +3,6 @@ package com.demo.wordtest.service.impl;
 import com.demo.wordtest.dao.WordDao;
 import com.demo.wordtest.entity.Word;
 import com.demo.wordtest.service.WordService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -13,8 +12,11 @@ import java.util.Map;
 @Service
 public class WordServiceImpl implements WordService {
 
-    @Autowired
-    private WordDao wordDao;
+    private final WordDao wordDao;
+
+    public WordServiceImpl(WordDao wordDao) {
+        this.wordDao = wordDao;
+    }
 
     @Override
     public Map<String, Object> getWordList(String keyword, String category, int page, int size) {

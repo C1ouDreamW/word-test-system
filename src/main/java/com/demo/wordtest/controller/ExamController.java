@@ -6,7 +6,6 @@ import com.demo.wordtest.service.ExamService;
 import com.demo.wordtest.vo.PaperVO;
 import com.demo.wordtest.vo.SubmitRequest;
 import com.demo.wordtest.vo.SubmitResultVO;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -24,8 +23,11 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/exams")
 public class ExamController {
 
-    @Autowired
-    private ExamService examService;
+    private final ExamService examService;
+
+    public ExamController(ExamService examService) {
+        this.examService = examService;
+    }
 
     /**
      * GET /api/exams
@@ -45,9 +47,13 @@ public class ExamController {
             m.put("questionCount", e.getQuestionCount());
             m.put("category", e.getCategory());
             if (e.getStartTime() != null && e.getEndTime() != null) {
-                if (now.isBefore(e.getStartTime())) m.put("status", "未开始");
-                else if (now.isAfter(e.getEndTime())) m.put("status", "已结束");
-                else m.put("status", "进行中");
+                if (now.isBefore(e.getStartTime())) {
+                    m.put("status", "未开始");
+                } else if (now.isAfter(e.getEndTime())) {
+                    m.put("status", "已结束");
+                } else {
+                    m.put("status", "进行中");
+                }
             }
             return m;
         }).collect(Collectors.toList());
@@ -93,9 +99,7 @@ public class ExamController {
         try {
             PaperVO paper = examService.getPaper(examId, userId);
             return ApiResult.ok(paper);
-        } catch (IllegalArgumentException e) {
-            return ApiResult.fail(e.getMessage());
-        } catch (IllegalStateException e) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
             return ApiResult.fail(e.getMessage());
         }
     }

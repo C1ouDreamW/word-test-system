@@ -6,7 +6,6 @@ import com.demo.wordtest.vo.ScoreVO;
 import com.demo.wordtest.vo.StatsVO;
 import com.demo.wordtest.vo.SubmitResultVO;
 import com.demo.wordtest.vo.WordCloudItemVO;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,8 +18,11 @@ import java.util.List;
 @RequestMapping("/api")
 public class ScoreController {
 
-    @Autowired
-    private ScoreService scoreService;
+    private final ScoreService scoreService;
+
+    public ScoreController(ScoreService scoreService) {
+        this.scoreService = scoreService;
+    }
 
     /**
      * GET /api/scores?userId=1      查询某个学生的所有考试成绩
