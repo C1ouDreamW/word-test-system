@@ -90,7 +90,7 @@
             // 格式转换：ECharts 需要的格式是 { name: '单词', value: 频次 }
             const chartData = data.map(item => ({
                 name: item.word || item.text || item.english || '未知',
-                value: item.count || item.value || item.frequency || 1
+                value: item.wrongCount || item.value || 1
             }));
 
             // 绘制炫酷的字符云

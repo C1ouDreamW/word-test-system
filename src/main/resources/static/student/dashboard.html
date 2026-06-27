@@ -39,7 +39,7 @@
                 <thead class="table-light">
                     <tr>
                         <th class="py-3">考试名称</th>
-                        <th class="py-3">交卷时间</th>
+                        <th class="py-3">答对/总题</th>
                         <th class="py-3">答题得分</th>
                         <th class="py-3">操作</th>
                     </tr>
@@ -149,7 +149,7 @@
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td class="fw-bold">${record.examTitle || '-'}</td>
-                    <td class="text-muted">${record.submitTime || '-'}</td>
+                    <td class="text-muted">${record.correctCount || 0}/${record.total || 0}</td>
                     <td class="${scoreColor} fs-5">${record.score} 分</td>
                     <td>
                         <a href="/student/result.html?examId=${record.examId}" class="btn btn-sm btn-outline-primary">查看错题详情</a>

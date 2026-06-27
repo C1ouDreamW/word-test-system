@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线答题 - 专业英语单词测试系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f6f9; }
+        .navbar { box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .timer { font-size: 1.5rem; font-weight: bold; font-family: 'Courier New', monospace; }
+        .timer.warning { color: #ffc107; }
+        .timer.danger { color: #dc3545; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+        .progress { height: 25px; }
+        .question-card { background: white; border-radius: 10px; padding: 20px; margin-bottom: 15px; border: 1px solid #e9ecef; transition: all 0.2s; }
+        .question-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .question-num { font-size: 0.85rem; font-weight: bold; color: #6c757d; margin-bottom: 8px; }
+        .question-type-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; }
+        .type-choice { background-color: #cfe2ff; color: #084298; }
+        .type-en2cn { background-color: #d1e7dd; color: #0f5132; }
+        .type-cn2en { background-color: #fff3cd; color: #664d03; }
+        .sidebar-nav { background: white; border-radius: 10px; padding: 15px; position: sticky; top: 20px; }
+        .sidebar-nav a { display: block; padding: 5px 10px; margin-bottom: 4px; border-radius: 6px; text-decoration: none; font-size: 0.9rem; color: #495057; }
+        .sidebar-nav a:hover { background-color: #f0f0f0; }
+        .sidebar-nav a.answered { background-color: #d1e7dd; color: #0f5132; font-weight: bold; }
+        .option-item { display: block; padding: 12px 16px; margin-bottom: 8px; border: 2px solid #e9ecef; border-radius: 8px; cursor: pointer; transition: all 0.15s; user-select: none; }
+        .option-item:hover:not(.disabled) { border-color: #0d6efd; background-color: #f0f4ff; }
+        .option-item.selected { border-color: #0d6efd; background-color: #e7f1ff; font-weight: bold; }
+        .option-item input[type="radio"] { display: none; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-bold" href="/student/dashboard.html">专业英语单词测试系统</a>
+        <div class="d-flex align-items-center text-white">
+            <span id="examTitle" class="me-4 fw-bold"></span>
+            <div class="me-4">
+                <span class="text-white-50 me-1">剩余时间</span>
+                <span class="timer text-white" id="timer">--:--</span>
+            </div>
+            <button class="btn btn-light btn-sm fw-bold" id="submitBtn" onclick="submitExam()" disabled>
+                提交试卷
+            </button>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-2">
+            <div class="sidebar-nav">
+                <h6 class="fw-bold mb-3">题目导航</h6>
+                <div id="questionNav"></div>
+                <hr>
+                <div class="d-flex justify-content-between small text-muted">
+                    <span>已答: <strong id="answeredCount" class="text-success">0</strong></span>
+                    <span style="font-size:0.85rem">/ <span id="totalCount">0</span> 题</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-10">
+            <div id="loading" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="text-muted mt-3">正在加载试卷，请稍候...</p>
+            </div>
+            <div id="questionList" style="display:none;"></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="confirmModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认交卷</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" id="closeModalBtn"></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMsg">确定要提交试卷吗？</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">继续答题</button>
+                <button type="button" class="btn btn-primary fw-bold" onclick="doSubmit()">确认提交</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js"></script>
+<script>
+    let currentUser = null;
+    let examId = null;
+    let paper = null;
+    let answers = {};
+    let remainingSeconds = 0;
+    let timerInterval = null;
+    let confirmModal = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const userStr = localStorage.getItem('user');
+        if (!userStr) { alert('请先登录！'); window.location.href = '/login.html'; return; }
+        currentUser = JSON.parse(userStr);
+        if (currentUser.role !== 'student') { alert('仅限学生访问！'); window.location.href = '/login.html'; return; }
+
+        const params = new URLSearchParams(window.location.search);
+        examId = params.get('examId');
+        if (!examId) { alert('缺少考试ID参数！'); window.location.href = '/student/dashboard.html'; return; }
+
+        confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+        loadPaper();
+    });
+
+    function loadPaper() {
+        API.get(`/api/exams/${examId}/paper?userId=${currentUser.id}`).then(data => {
+            paper = data;
+            document.getElementById('examTitle').innerText = data.examTitle || '';
+            document.getElementById('totalCount').innerText = data.questions ? data.questions.length : 0;
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('questionList').style.display = 'block';
+            document.getElementById('submitBtn').disabled = false;
+
+            if (data.remainingSeconds <= 0) {
+                alert('考试时间已到！');
+                window.location.href = '/student/dashboard.html';
+                return;
+            }
+            remainingSeconds = data.remainingSeconds;
+
+            renderQuestions();
+            renderNav();
+            startTimer();
+        }).catch(err => {
+            document.getElementById('loading').innerHTML =
+                '<p class="text-danger">加载试卷失败，请检查网络或联系管理员。</p>';
+        });
+    }
+
+    function renderQuestions() {
+        const container = document.getElementById('questionList');
+        container.innerHTML = '';
+        paper.questions.forEach((q, idx) => {
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `question-${q.questionId}`;
+
+            let typeLabel = '', typeClass = '';
+            if (q.type === 'EN_TO_CN') { typeLabel = '英译中'; typeClass = 'type-en2cn'; }
+            else if (q.type === 'CN_TO_EN') { typeLabel = '中译英'; typeClass = 'type-cn2en'; }
+            else if (q.type === 'CHOICE') { typeLabel = '选择题'; typeClass = 'type-choice'; }
+
+            let bodyHtml = '';
+            if (q.type === 'CHOICE' && q.options) {
+                bodyHtml = q.options.map(opt => `
+                    <label class="option-item" data-value="${opt}">
+                        <input type="radio" name="q${q.questionId}" value="${opt}" onchange="saveAnswer(${q.questionId}, '${opt.replace(/'/g, "\\'")}')">
+                        <span>${opt}</span>
+                    </label>
+                `).join('');
+            } else {
+                const placeholder = q.type === 'EN_TO_CN' ? '请输入中文释义' : '请输入英文单词';
+                bodyHtml = `<input type="text" class="form-control form-control-lg" id="input-${q.questionId}"
+                    placeholder="${placeholder}" autocomplete="off"
+                    oninput="saveAnswer(${q.questionId}, this.value)">`;
+            }
+
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <span class="question-num">第 ${idx + 1} 题</span>
+                        <span class="badge question-type-badge ${typeClass}">${typeLabel}</span>
+                    </div>
+                </div>
+                <h5 class="question-text mb-3">${q.question}</h5>
+                <div class="question-body">${bodyHtml}</div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function renderNav() {
+        const nav = document.getElementById('questionNav');
+        nav.innerHTML = '';
+        paper.questions.forEach((q, idx) => {
+            const a = document.createElement('a');
+            a.href = '#question-' + q.questionId;
+            a.innerText = `第 ${idx + 1} 题`;
+            a.id = `nav-${q.questionId}`;
+            nav.appendChild(a);
+        });
+    }
+
+    function saveAnswer(questionId, value) {
+        answers[questionId] = value;
+        updateAnsweredCount();
+
+        const navItem = document.getElementById(`nav-${questionId}`);
+        if (navItem) navItem.classList.add('answered');
+
+        const labels = document.querySelectorAll(`[name="q${questionId}"].option-item, [data-value="${value}"]`);
+        document.querySelectorAll(`[name="q${questionId}"]`).forEach(radio => {
+            const label = radio.closest('.option-item');
+            if (label) {
+                label.classList.toggle('selected', radio.value === value);
+            }
+        });
+    }
+
+    function updateAnsweredCount() {
+        const count = Object.keys(answers).filter(k => answers[k] && answers[k].trim() !== '').length;
+        document.getElementById('answeredCount').innerText = count;
+    }
+
+    function startTimer() {
+        updateTimerDisplay();
+        timerInterval = setInterval(() => {
+            remainingSeconds--;
+            if (remainingSeconds <= 0) {
+                clearInterval(timerInterval);
+                alert('考试时间已到，系统自动提交！');
+                doSubmit();
+                return;
+            }
+            updateTimerDisplay();
+        }, 1000);
+    }
+
+    function updateTimerDisplay() {
+        const min = Math.floor(remainingSeconds / 60).toString().padStart(2, '0');
+        const sec = (remainingSeconds % 60).toString().padStart(2, '0');
+        const el = document.getElementById('timer');
+        el.innerText = `${min}:${sec}`;
+        el.classList.remove('warning', 'danger');
+        if (remainingSeconds <= 60) el.classList.add('danger');
+        else if (remainingSeconds <= 300) el.classList.add('warning');
+    }
+
+    function submitExam() {
+        const total = paper.questions.length;
+        const answered = Object.keys(answers).filter(k => answers[k] && answers[k].trim() !== '').length;
+        document.getElementById('confirmMsg').innerText =
+            `您已完成 ${answered}/${total} 题，${answered < total ? '还有未作答的题目。' : ''}确定要提交吗？`;
+        confirmModal.show();
+    }
+
+    function doSubmit() {
+        clearInterval(timerInterval);
+        document.getElementById('closeModalBtn').style.display = 'none';
+
+        const answerList = paper.questions.map(q => ({
+            questionId: q.questionId,
+            answer: answers[q.questionId] || ''
+        }));
+
+        const submitData = { userId: currentUser.id, answers: answerList };
+
+        API.post(`/api/exams/${examId}/submit`, submitData).then(result => {
+            sessionStorage.setItem('examResult', JSON.stringify({
+                examId: examId,
+                score: result.score,
+                total: result.total,
+                correctCount: result.correctCount
+            }));
+            window.location.href = `/student/result.html?examId=${examId}`;
+        }).catch(() => {
+            clearInterval(timerInterval);
+            document.getElementById('submitBtn').disabled = false;
+            document.getElementById('closeModalBtn').style.display = '';
+        });
+    }
+</script>
+</body>
+</html>
