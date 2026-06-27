@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>字符云 - 专业英语单词测试系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts-wordcloud/2.1.0/echarts-wordcloud.min.js"></script>
+    <style>
+        body { background-color: #f8f9fa; }
+        .sidebar { min-height: 100vh; background-color: #343a40; color: white; padding-top: 20px; }
+        .sidebar a { color: #adb5bd; text-decoration: none; padding: 10px 20px; display: block; }
+        .sidebar a:hover, .sidebar a.active { color: white; background-color: #495057; }
+        .main-content { padding: 30px; }
+        #wordCloudContainer { width: 100%; height: 600px; background: white; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-2 sidebar">
+            <h4 class="text-center mb-4">管理员后台</h4>
+            <a href="/admin/words.html">单词管理</a>
+            <a href="/admin/exams.html">考试管理</a>
+            <a href="/admin/stats.html">成绩统计</a>
+            <a href="/admin/wordcloud.html" class="active">字符云</a>
+            <hr class="text-secondary">
+            <a href="/login.html" class="text-danger" onclick="localStorage.removeItem('user')">退出登录</a>
+        </div>
+
+        <div class="col-md-10 main-content">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>全局高频错词云图</h2>
+                <button class="btn btn-outline-primary" onclick="loadWordCloud()">↻ 重新生成</button>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div id="wordCloudContainer"></div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+    // 声明一个全局的 ECharts 实例变量
+    let myChart;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user || user.role !== 'admin') {
+            alert('您没有权限或未登录！');
+            window.location.href = '/login.html';
+            return;
+        }
+
+        // 初始化 ECharts 画布
+        myChart = echarts.init(document.getElementById('wordCloudContainer'));
+        
+        // 随窗口大小自动缩放
+        window.addEventListener('resize', () => {
+            myChart.resize();
+        });
+
+        // 加载数据
+        loadWordCloud();
+    });
+
+    function loadWordCloud() {
+        // 展示图表的加载动画
+        myChart.showLoading({ text: '正在分析错词数据...', color: '#0d6efd' });
+
+        // 调用你组长写好的接口
+        API.get('/api/wordcloud').then(data => {
+            myChart.hideLoading();
+
+            if (!data || data.length === 0) {
+                // 如果后端返回空，说明还没有人答错过题，给个提示
+                myChart.setOption({
+                    title: { text: '暂无错词数据', left: 'center', top: 'center', textStyle: { color: '#adb5bd' } }
+                }, true);
+                return;
+            }
+
+            // 格式转换：ECharts 需要的格式是 { name: '单词', value: 频次 }
+            const chartData = data.map(item => ({
+                name: item.word || item.text || item.english || '未知',
+                value: item.count || item.value || item.frequency || 1
+            }));
+
+            // 绘制炫酷的字符云
+            const option = {
+                tooltip: {
+                    show: true,
+                    formatter: '{b} <br/>错误次数: {c}'
+                },
+                series: [{
+                    type: 'wordCloud',
+                    shape: 'circle',        // 整体形状
+                    keepAspect: false,
+                    left: 'center', top: 'center', width: '90%', height: '90%',
+                    sizeRange: [14, 80],    // 字体大小范围
+                    rotationRange: [-45, 90], // 字体旋转角度范围
+                    rotationStep: 45,
+                    gridSize: 8,            // 单词间距
+                    drawOutOfBound: false,
+                    textStyle: {
+                        fontFamily: 'sans-serif',
+                        fontWeight: 'bold',
+                        // 随机生成深色系的颜色
+                        color: function () {
+                            return 'rgb(' + [
+                                Math.round(Math.random() * 160),
+                                Math.round(Math.random() * 160),
+                                Math.round(Math.random() * 160)
+                            ].join(',') + ')';
+                        }
+                    },
+                    emphasis: {
+                        focus: 'self',
+                        textStyle: { shadowBlur: 10, shadowColor: '#333' }
+                    },
+                    data: chartData
+                }]
+            };
+
+            // 将配置项设置进图表
+            myChart.setOption(option, true);
+        }).catch(err => {
+            myChart.hideLoading();
+            myChart.setOption({
+                title: { text: '数据加载失败', left: 'center', top: 'center', textStyle: { color: '#dc3545' } }
+            }, true);
+        });
+    }
+</script>
+
+</body>
+</html>

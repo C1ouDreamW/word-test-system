@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>考试管理 - 专业英语单词测试系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .sidebar { min-height: 100vh; background-color: #343a40; color: white; padding-top: 20px; }
+        .sidebar a { color: #adb5bd; text-decoration: none; padding: 10px 20px; display: block; }
+        .sidebar a:hover, .sidebar a.active { color: white; background-color: #495057; }
+        .main-content { padding: 30px; }
+        .table td, .table th { vertical-align: middle; }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-2 sidebar">
+            <h4 class="text-center mb-4">管理员后台</h4>
+            <a href="/admin/words.html">单词管理</a>
+            <a href="/admin/exams.html" class="active">考试管理</a>
+            <a href="/admin/stats.html">成绩统计</a>
+            <a href="/admin/wordcloud.html">字符云</a>
+            <hr class="text-secondary">
+            <a href="/login.html" class="text-danger" onclick="localStorage.removeItem('user')">退出登录</a>
+        </div>
+
+        <div class="col-md-10 main-content">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>考试管理</h2>
+                <button class="btn btn-primary" onclick="showAddModal()">+ 发布新考试</button>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <table class="table table-hover text-center">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>考试名称</th>
+                                <th>开始时间</th>
+                                <th>结束时间</th>
+                                <th>题量</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="examTableBody">
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">正在加载数据...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="examModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">发布新考试</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="examForm">
+                    <div class="mb-3">
+                        <label class="form-label">考试名称</label>
+                        <input type="text" class="form-control" id="title" placeholder="如：第1章 网络基础测验" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">开始时间</label>
+                        <input type="datetime-local" class="form-control" id="startTime" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">结束时间</label>
+                        <input type="datetime-local" class="form-control" id="endTime" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">题目数量</label>
+                        <input type="number" class="form-control" id="questionCount" min="1" max="100" value="20" required>
+                        <div class="form-text">系统将在学生开始答题时随机从词库中抽取指定数量的题目。</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveExam()">发布</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js"></script>
+
+<script>
+    let examModal;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // 权限校验
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user || user.role !== 'admin') {
+            alert('您没有权限或未登录！');
+            window.location.href = '/login.html';
+            return;
+        }
+        
+        examModal = new bootstrap.Modal(document.getElementById('examModal'));
+        loadExams();
+    });
+
+    // 获取并渲染考试列表
+    function loadExams() {
+        API.get('/api/exams').then(data => {
+            const tbody = document.getElementById('examTableBody');
+            tbody.innerHTML = ''; 
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">当前没有已发布的考试</td></tr>`;
+                return;
+            }
+
+            data.forEach(exam => {
+                // 状态颜色处理：进行中(绿)，未开始(黄)，已结束(灰)
+                let statusBadge = 'bg-secondary';
+                if (exam.status === '进行中') statusBadge = 'bg-success';
+                else if (exam.status === '未开始') statusBadge = 'bg-warning text-dark';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${exam.id}</td>
+                    <td class="fw-bold">${exam.title}</td>
+                    <td>${exam.startTime}</td>
+                    <td>${exam.endTime}</td>
+                    <td>${exam.questionCount} 题</td>
+                    <td><span class="badge ${statusBadge}">${exam.status || '未知'}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteExam(${exam.id})">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }).catch(() => {
+            document.getElementById('examTableBody').innerHTML = `<tr><td colspan="7" class="text-center text-danger">数据加载失败</td></tr>`;
+        });
+    }
+
+    // 唤起新增弹窗
+    function showAddModal() {
+        document.getElementById('examForm').reset();
+        examModal.show();
+    }
+
+    // 发布考试
+    function saveExam() {
+        // HTML 的 datetime-local 格式带有 'T'，API 需要标准格式 'YYYY-MM-DD HH:mm:ss'
+        const rawStart = document.getElementById('startTime').value;
+        const rawEnd = document.getElementById('endTime').value;
+        
+        if (!rawStart || !rawEnd || !document.getElementById('title').value) {
+            alert("请填写完整的考试信息！");
+            return;
+        }
+
+        const formatTime = (timeStr) => timeStr + ':00';
+
+        const examData = {
+            title: document.getElementById('title').value,
+            startTime: formatTime(rawStart),
+            endTime: formatTime(rawEnd),
+            questionCount: parseInt(document.getElementById('questionCount').value)
+        };
+
+        API.post('/api/exams', examData).then(() => {
+            examModal.hide();
+            loadExams(); // 刷新列表
+        });
+    }
+
+    // 删除考试
+    function deleteExam(id) {
+        if (confirm('确定要删除这场考试吗？删除后相关的答题记录也会受到影响。')) {
+            API.delete(`/api/exams/${id}`).then(() => {
+                loadExams();
+            });
+        }
+    }
+</script>
+
+</body>
+</html>

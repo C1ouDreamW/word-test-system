@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成绩统计 - 专业英语单词测试系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .sidebar { min-height: 100vh; background-color: #343a40; color: white; padding-top: 20px; }
+        .sidebar a { color: #adb5bd; text-decoration: none; padding: 10px 20px; display: block; }
+        .sidebar a:hover, .sidebar a.active { color: white; background-color: #495057; }
+        .main-content { padding: 30px; }
+        .stat-card { transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-5px); }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-2 sidebar">
+            <h4 class="text-center mb-4">管理员后台</h4>
+            <a href="/admin/words.html">单词管理</a>
+            <a href="/admin/exams.html">考试管理</a>
+            <a href="/admin/stats.html" class="active">成绩统计</a>
+            <a href="/admin/wordcloud.html">字符云</a>
+            <hr class="text-secondary">
+            <a href="/login.html" class="text-danger" onclick="localStorage.removeItem('user')">退出登录</a>
+        </div>
+
+        <div class="col-md-10 main-content">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>考试成绩统计看板</h2>
+                <div class="d-flex align-items-center">
+                    <label class="me-2 text-muted text-nowrap">选择考试：</label>
+                    <select id="examSelect" class="form-select" style="min-width: 250px;" onchange="onExamChange()">
+                        <option value="">-- 请选择一场考试 --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card stat-card border-0 shadow-sm bg-primary text-white">
+                        <div class="card-body">
+                            <h5 class="card-title">考试平均分</h5>
+                            <h2 class="display-5 fw-bold" id="averageScore">- 分</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card stat-card border-0 shadow-sm bg-success text-white">
+                        <div class="card-body">
+                            <h5 class="card-title">最高得分</h5>
+                            <h2 class="display-5 fw-bold" id="maxScore">- 分</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card stat-card border-0 shadow-sm bg-danger text-white">
+                        <div class="card-body">
+                            <h5 class="card-title">最低得分</h5>
+                            <h2 class="display-5 fw-bold" id="minScore">- 分</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">考生答题成绩排名</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-hover text-center align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>记录ID</th>
+                                <th>学生账号/ID</th>
+                                <th>答题得分</th>
+                                <th>交卷时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="statsTableBody">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">请先在右上角选择一场考试进行查看</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user || user.role !== 'admin') {
+            alert('您没有权限或未登录！');
+            window.location.href = '/login.html';
+            return;
+        }
+        
+        // 1. 初始化时先去把所有的考试列表捞出来，装填进下拉菜单
+        initExamList();
+    });
+
+    // 初始化考试下拉框
+    function initExamList() {
+        API.get('/api/exams').then(exams => {
+            const select = document.getElementById('examSelect');
+            select.innerHTML = '<option value="">-- 请选择一场考试 --</option>';
+            
+            if (!exams || exams.length === 0) {
+                return;
+            }
+
+            exams.forEach(exam => {
+                const opt = document.createElement('option');
+                opt.value = exam.id;
+                opt.innerText = exam.title;
+                select.appendChild(opt);
+            });
+
+            // 默认自动选中第一场考试进行展示
+            if (exams.length > 0) {
+                select.value = exams[0].id;
+                onExamChange();
+            }
+        });
+    }
+
+    // 下拉框切换事件
+    function onExamChange() {
+        const examId = document.getElementById('examSelect').value;
+        if (!examId) {
+            clearDashboard();
+            return;
+        }
+        loadStatsData(examId);
+    }
+
+    // 清空看板数据
+    function clearDashboard() {
+        document.getElementById('averageScore').innerText = '- 分';
+        document.getElementById('maxScore').innerText = '- 分';
+        document.getElementById('minScore').innerText = '- 分';
+        document.getElementById('statsTableBody').innerHTML = `<tr><td colspan="4" class="text-center text-muted">请先在右上角选择一场考试进行查看</td></tr>`;
+    }
+
+    // 核心联调函数：双管齐下，调用组长的两个新接口
+    function loadStatsData(examId) {
+        // 1. 调用考试宏观统计接口 (平均分、最高分、最低分)
+        API.get(`/api/stats/${examId}`).then(data => {
+            // 兼容可能出现的字段名差异（通常为驼峰命名）
+            document.getElementById('averageScore').innerText = (data.averageScore !== undefined ? data.averageScore : 0) + ' 分';
+            document.getElementById('maxScore').innerText = (data.maxScore !== undefined ? data.maxScore : 0) + ' 分';
+            document.getElementById('minScore').innerText = (data.minScore !== undefined ? data.minScore : 0) + ' 分';
+        }).catch(() => {
+            document.getElementById('averageScore').innerText = '0 分';
+            document.getElementById('maxScore').innerText = '0 分';
+            document.getElementById('minScore').innerText = '0 分';
+        });
+
+        // 2. 调用考生成绩列表接口
+        API.get(`/api/scores?examId=${examId}`).then(records => {
+            const tbody = document.getElementById('statsTableBody');
+            tbody.innerHTML = ''; 
+
+            if (!records || records.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">这场考试目前还没有学生参加答题</td></tr>`;
+                return;
+            }
+
+            records.forEach(record => {
+                const scoreColor = record.score < 60 ? 'text-danger fw-bold' : 'text-success fw-bold';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${record.id || '-'}</td>
+                    <td>${record.username || record.userId || '未知学生'}</td>
+                    <td class="${scoreColor}">${record.score} 分</td>
+                    <td>${record.submitTime || '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }).catch(() => {
+            document.getElementById('statsTableBody').innerHTML = `<tr><td colspan="4" class="text-center text-danger">学生成绩加载失败</td></tr>`;
+        });
+    }
+</script>
+
+</body>
+</html>
