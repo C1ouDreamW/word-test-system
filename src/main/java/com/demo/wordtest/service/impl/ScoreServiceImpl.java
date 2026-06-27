@@ -10,7 +10,6 @@ import com.demo.wordtest.vo.ScoreVO;
 import com.demo.wordtest.vo.StatsVO;
 import com.demo.wordtest.vo.SubmitResultVO;
 import com.demo.wordtest.vo.WordCloudItemVO;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -24,11 +23,14 @@ import java.util.Map;
 @Service
 public class ScoreServiceImpl implements ScoreService {
 
-    @Autowired
-    private AnswerDao answerDao;
+    private final AnswerDao answerDao;
 
-    @Autowired
-    private ExamDao examDao;
+    private final ExamDao examDao;
+
+    public ScoreServiceImpl(AnswerDao answerDao, ExamDao examDao) {
+        this.answerDao = answerDao;
+        this.examDao = examDao;
+    }
 
     @Override
     public List<ScoreVO> getScores(Integer userId, Integer examId) {
@@ -103,8 +105,12 @@ public class ScoreServiceImpl implements ScoreService {
             int correctCount = ((Number) row.get("correctCount")).intValue();
             int score = total > 0 ? (int) Math.round((double) correctCount / total * 100) : 0;
             sumScore += score;
-            if (score > maxScore) maxScore = score;
-            if (score < minScore) minScore = score;
+            if (score > maxScore) {
+                maxScore = score;
+            }
+            if (score < minScore) {
+                minScore = score;
+            }
         }
 
         int avgScore = totalStudents > 0 ? (int) Math.round((double) sumScore / totalStudents) : 0;
@@ -173,7 +179,9 @@ public class ScoreServiceImpl implements ScoreService {
         for (Map<String, Object> row : rows) {
             Integer isCorrect = row.get("isCorrect") != null
                     ? ((Number) row.get("isCorrect")).intValue() : 0;
-            if (isCorrect == 1) correctCount++;
+            if (isCorrect == 1) {
+                correctCount++;
+            }
 
             AnswerDetailVO detail = new AnswerDetailVO();
             detail.setQuestionId((Integer) row.get("questionId"));

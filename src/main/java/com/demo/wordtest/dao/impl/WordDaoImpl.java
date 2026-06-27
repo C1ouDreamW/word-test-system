@@ -2,7 +2,6 @@ package com.demo.wordtest.dao.impl;
 
 import com.demo.wordtest.dao.WordDao;
 import com.demo.wordtest.entity.Word;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -18,8 +17,11 @@ import java.util.StringJoiner;
 @Repository
 public class WordDaoImpl implements WordDao {
 
-    @Autowired
-    private JdbcTemplate jdbc;
+    private final JdbcTemplate jdbc;
+
+    public WordDaoImpl(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
 
     @Override
     public List<Word> findWords(String keyword, String category, int offset, int size) {
@@ -40,7 +42,7 @@ public class WordDaoImpl implements WordDao {
         params.add(size);
         params.add(offset);
 
-        return jdbc.query(sql.toString(), params.toArray(), new BeanPropertyRowMapper<>(Word.class));
+        return jdbc.query(sql.toString(), new BeanPropertyRowMapper<>(Word.class), params.toArray());
     }
 
     @Override
@@ -58,7 +60,7 @@ public class WordDaoImpl implements WordDao {
             params.add(category);
         }
 
-        Integer count = jdbc.queryForObject(sql.toString(), params.toArray(), Integer.class);
+        Integer count = jdbc.queryForObject(sql.toString(), Integer.class, params.toArray());
         return count != null ? count : 0;
     }
 
@@ -137,6 +139,6 @@ public class WordDaoImpl implements WordDao {
         }
 
         String sql = "SELECT id, english, chinese, category FROM words WHERE id IN (" + placeholders + ")";
-        return jdbc.query(sql, ids.toArray(), new BeanPropertyRowMapper<>(Word.class));
+        return jdbc.query(sql, new BeanPropertyRowMapper<>(Word.class), ids.toArray());
     }
 }

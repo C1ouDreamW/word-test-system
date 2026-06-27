@@ -75,10 +75,10 @@
                     <table class="table table-hover text-center align-middle">
                         <thead class="table-light">
                             <tr>
-                                <th>记录ID</th>
-                                <th>学生账号/ID</th>
+                                <th>排名</th>
+                                <th>学生账号</th>
                                 <th>答题得分</th>
-                                <th>交卷时间</th>
+                                <th>答对/总题</th>
                             </tr>
                         </thead>
                         <tbody id="statsTableBody">
@@ -156,7 +156,7 @@
         // 1. 调用考试宏观统计接口 (平均分、最高分、最低分)
         API.get(`/api/stats/${examId}`).then(data => {
             // 兼容可能出现的字段名差异（通常为驼峰命名）
-            document.getElementById('averageScore').innerText = (data.averageScore !== undefined ? data.averageScore : 0) + ' 分';
+            document.getElementById('averageScore').innerText = (data.avgScore !== undefined ? data.avgScore : 0) + ' 分';
             document.getElementById('maxScore').innerText = (data.maxScore !== undefined ? data.maxScore : 0) + ' 分';
             document.getElementById('minScore').innerText = (data.minScore !== undefined ? data.minScore : 0) + ' 分';
         }).catch(() => {
@@ -175,14 +175,14 @@
                 return;
             }
 
-            records.forEach(record => {
+            records.forEach((record, idx) => {
                 const scoreColor = record.score < 60 ? 'text-danger fw-bold' : 'text-success fw-bold';
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${record.id || '-'}</td>
-                    <td>${record.username || record.userId || '未知学生'}</td>
+                    <td>${idx + 1}</td>
+                    <td>${record.username || '用户' + record.userId}</td>
                     <td class="${scoreColor}">${record.score} 分</td>
-                    <td>${record.submitTime || '-'}</td>
+                    <td>${record.correctCount || 0}/${record.total || 0}</td>
                 `;
                 tbody.appendChild(tr);
             });

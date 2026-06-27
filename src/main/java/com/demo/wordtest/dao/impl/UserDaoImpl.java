@@ -2,7 +2,6 @@ package com.demo.wordtest.dao.impl;
 
 import com.demo.wordtest.dao.UserDao;
 import com.demo.wordtest.entity.User;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -10,8 +9,11 @@ import org.springframework.stereotype.Repository;
 @Repository // 必须加这个注解，把 DAO 交给 Spring 管理
 public class UserDaoImpl implements UserDao {
 
-    @Autowired
-    private JdbcTemplate jdbc; 
+    private final JdbcTemplate jdbc;
+
+    public UserDaoImpl(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
 
     @Override
     public User findByUsername(String username) {

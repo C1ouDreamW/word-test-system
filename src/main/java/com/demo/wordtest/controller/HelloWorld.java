@@ -6,7 +6,7 @@ import com.demo.wordtest.common.ApiResult;
 
 
 /**
- * 测试接口，地址http://localhost:8080/hello
+ * 测试接口
  * @author wangbo
  */
 @RestController

@@ -3,7 +3,6 @@ package com.demo.wordtest.controller;
 import com.demo.wordtest.common.ApiResult;
 import com.demo.wordtest.entity.Word;
 import com.demo.wordtest.service.WordService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -12,8 +11,11 @@ import java.util.Map;
 @RequestMapping("/api/words") // 统一路径前缀
 public class WordController {
 
-    @Autowired
-    private WordService wordService;
+    private final WordService wordService;
+
+    public WordController(WordService wordService) {
+        this.wordService = wordService;
+    }
 
     /**
      * GET /api/words

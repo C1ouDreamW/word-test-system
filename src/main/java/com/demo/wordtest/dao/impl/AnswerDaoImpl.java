@@ -3,7 +3,6 @@ package com.demo.wordtest.dao.impl;
 import com.demo.wordtest.dao.AnswerDao;
 import com.demo.wordtest.entity.Answer;
 import com.demo.wordtest.vo.WordCloudItemVO;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -20,8 +19,11 @@ import java.util.StringJoiner;
 @Repository
 public class AnswerDaoImpl implements AnswerDao {
 
-    @Autowired
-    private JdbcTemplate jdbc;
+    private final JdbcTemplate jdbc;
+
+    public AnswerDaoImpl(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
 
     @Override
     public int[] insertBatch(List<Answer> answers) {
@@ -59,7 +61,7 @@ public class AnswerDaoImpl implements AnswerDao {
         List<Object> params = new ArrayList<>(questionIds);
         params.add(userId);
 
-        return jdbc.query(sql, params.toArray(), new BeanPropertyRowMapper<>(Answer.class));
+        return jdbc.query(sql, new BeanPropertyRowMapper<>(Answer.class), params.toArray());
     }
 
     @Override

@@ -3,14 +3,16 @@ package com.demo.wordtest.service.impl;
 import com.demo.wordtest.dao.UserDao;
 import com.demo.wordtest.entity.User;
 import com.demo.wordtest.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class UserServiceImpl implements UserService {
 
-    @Autowired
-    private UserDao userDao;
+    private final UserDao userDao;
+
+    public UserServiceImpl(UserDao userDao) {
+        this.userDao = userDao;
+    }
 
     @Override
     public User login(String username, String role) {
