@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,12 +35,13 @@ public class ExamController {
     public ApiResult<List<Map<String, Object>>> list() {
         List<Exam> exams = examService.getExamList();
         LocalDateTime now = LocalDateTime.now();
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         List<Map<String, Object>> result = exams.stream().map(e -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", e.getId());
             m.put("title", e.getTitle());
-            m.put("startTime", e.getStartTime() != null ? e.getStartTime().toString() : null);
-            m.put("endTime", e.getEndTime() != null ? e.getEndTime().toString() : null);
+            m.put("startTime", e.getStartTime() != null ? e.getStartTime().format(fmt) : null);
+            m.put("endTime", e.getEndTime() != null ? e.getEndTime().format(fmt) : null);
             m.put("questionCount", e.getQuestionCount());
             m.put("category", e.getCategory());
             if (e.getStartTime() != null && e.getEndTime() != null) {
