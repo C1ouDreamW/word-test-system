@@ -10,7 +10,6 @@ import com.demo.wordtest.vo.ScoreVO;
 import com.demo.wordtest.vo.StatsVO;
 import com.demo.wordtest.vo.SubmitResultVO;
 import com.demo.wordtest.vo.WordCloudItemVO;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -24,17 +23,13 @@ import java.util.Map;
 @Service
 public class ScoreServiceImpl implements ScoreService {
 
-    private AnswerDao answerDao;
+    private final AnswerDao answerDao;
 
     private final ExamDao examDao;
 
-    public ScoreServiceImpl(ExamDao examDao) {
-        this.examDao = examDao;
-    }
-
-    @Autowired
-    public ScoreServiceImpl(AnswerDao answerDao) {
+    public ScoreServiceImpl(AnswerDao answerDao, ExamDao examDao) {
         this.answerDao = answerDao;
+        this.examDao = examDao;
     }
 
     @Override
